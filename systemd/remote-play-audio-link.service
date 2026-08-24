@@ -1,0 +1,10 @@
+[Unit]
+Description=Link EasyEffects audio into Steam Remote Play's streaming sink
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/remote-play-audio-link.sh
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
