@@ -1,6 +1,6 @@
 {
   "name": "StreamKoda",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Decky plugin that swaps the Install button for a one-click Stream button on games already installed on another of your Steam machines.",
   "type": "module",
   "scripts": {

@@ -65,8 +65,8 @@ function Content() {
 export default definePlugin(() => {
   applyDefaultStreamSelections();
 
-  const deviceRegistration = SteamClient.RemotePlay.RegisterForDevicesChanges(() => {
-    applyDefaultStreamSelections();
+  const deviceRegistration = SteamClient.RemotePlay.RegisterForDevicesChanges((devices) => {
+    applyDefaultStreamSelections({ devices: devices as unknown as RemotePlayDevice[] });
   });
 
   // Deliberately NOT using SteamClient.Apps.RegisterForAppOverviewChanges
