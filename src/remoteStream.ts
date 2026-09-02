@@ -52,3 +52,12 @@ export function findStreamTarget(appId: number): StreamTarget | null {
 export function selectStreamTarget(appId: number, target: StreamTarget): void {
   SteamClient.Apps.SetStreamingClientForApp(appId, target.clientId);
 }
+
+/**
+ * Reverts `appId` back to the local-install target - the same effect as
+ * picking "This machine" from Steam's own streaming-target dropdown. Used
+ * when the user pulls a game off the stream-by-default list.
+ */
+export function clearStreamTarget(appId: number): void {
+  SteamClient.Apps.SetStreamingClientForApp(appId, LOCAL_CLIENT_ID);
+}

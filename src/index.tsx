@@ -1,8 +1,13 @@
 import { definePlugin, toaster } from "@decky/api";
-import { ButtonItem, PanelSection, PanelSectionRow, staticClasses } from "@decky/ui";
-import { useEffect, useState } from "react";
+import { ButtonItem, DropdownItem, PanelSection, PanelSectionRow, staticClasses } from "@decky/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FaSatelliteDish } from "react-icons/fa";
-import { applyDefaultStreamSelections } from "./defaultStreamSelection";
+import {
+  applyDefaultStreamSelections,
+  excludeApp,
+  getStreamDefaultedApps,
+  loadExcludedAppIds,
+} from "./defaultStreamSelection";
 
 interface RemotePlayDevice {
   clientId: string;
@@ -23,17 +28,58 @@ function useRemotePlayDevices(): RemotePlayDevice[] {
   return devices;
 }
 
+// Mirrors the selected dropdown app outside React state. The QAM flyout
+// appears to remount Content around dropdown interaction - a plain
+// setSelectedAppId queued right as that happens gets silently discarded
+// along with the unmounting instance (confirmed: our own "Selected: X"
+// line, driven purely by React state, stayed stuck on the top item just
+// like Steam's native dropdown label did). A synchronous assignment to a
+// module-level variable isn't subject to that discard, and the next mount's
+// lazy useState initializer picks it back up.
+let persistedSelectedAppId: number | null = null;
+
 function Content() {
   const devices = useRemotePlayDevices();
   const [lastApplied, setLastApplied] = useState<number | null>(null);
+  const [streamedApps, setStreamedApps] = useState<{ appId: number; displayName: string }[]>([]);
+  const [selectedAppId, setSelectedAppId] = useState<number | null>(() => persistedSelectedAppId);
+
+  const refreshStreamedApps = () => {
+    const apps = getStreamDefaultedApps();
+    setStreamedApps(apps);
+    const next = apps.some((a) => a.appId === persistedSelectedAppId)
+      ? persistedSelectedAppId
+      : (apps[0]?.appId ?? null);
+    persistedSelectedAppId = next;
+    setSelectedAppId(next);
+  };
+
+  useEffect(() => {
+    refreshStreamedApps();
+  }, []);
+
+  // Stable reference across unrelated re-renders (e.g. useRemotePlayDevices
+  // firing on background device events) so those don't reset an
+  // in-progress pick.
+  const dropdownOptions = useMemo(
+    () => streamedApps.map((a) => ({ data: a.appId, label: a.displayName })),
+    [streamedApps],
+  );
+  const onSelectStreamedApp = useCallback((option: { data: number }) => {
+    persistedSelectedAppId = option.data;
+    setSelectedAppId(option.data);
+  }, []);
+
+  const selectedApp = streamedApps.find((a) => a.appId === selectedAppId) ?? null;
 
   return (
     <PanelSection title="StreamKoda">
       <PanelSectionRow>
         <div style={{ fontSize: "0.8em", opacity: 0.8 }}>
           Games not installed locally but installed on another of these devices
-          default to streaming from that device - Steam's own streaming-target
-          dropdown still lets you switch back to installing locally any time.
+          default to streaming from that device. Pick one below and hit Remove
+          to keep it on local install - pressing Boop again brings it back if
+          it's still remote-stream-eligible.
         </div>
       </PanelSectionRow>
       <PanelSectionRow>
@@ -49,6 +95,7 @@ function Content() {
           onClick={() => {
             const count = applyDefaultStreamSelections({ force: true });
             setLastApplied(count);
+            refreshStreamedApps();
             toaster.toast({
               title: "StreamKoda",
               body: `Set stream as default for ${count} game(s).`,
@@ -58,12 +105,43 @@ function Content() {
           {lastApplied === null ? "Boop" : `Applied to ${lastApplied} game(s) - Re-Boop`}
         </ButtonItem>
       </PanelSectionRow>
+      <PanelSectionRow>
+        <DropdownItem
+          label="Streamed by default"
+          rgOptions={dropdownOptions}
+          selectedOption={selectedAppId}
+          strDefaultLabel="No games streamed by default"
+          onChange={onSelectStreamedApp}
+        />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <div style={{ fontSize: "0.8em", opacity: 0.8 }}>
+          Selected: {selectedApp?.displayName ?? "none"}
+        </div>
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <ButtonItem
+          layout="below"
+          disabled={selectedApp === null}
+          onClick={async () => {
+            if (selectedApp === null) return;
+            await excludeApp(selectedApp.appId);
+            refreshStreamedApps();
+            toaster.toast({
+              title: "StreamKoda",
+              body: `${selectedApp.displayName} will stay on local install until the next Boop.`,
+            });
+          }}
+        >
+          Remove
+        </ButtonItem>
+      </PanelSectionRow>
     </PanelSection>
   );
 }
 
 export default definePlugin(() => {
-  applyDefaultStreamSelections();
+  loadExcludedAppIds().then(() => applyDefaultStreamSelections());
 
   const deviceRegistration = SteamClient.RemotePlay.RegisterForDevicesChanges((devices) => {
     applyDefaultStreamSelections({ devices: devices as unknown as RemotePlayDevice[] });
