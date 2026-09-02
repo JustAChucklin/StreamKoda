@@ -7,10 +7,10 @@ class Plugin:
     # just the lifecycle stub decky-loader requires.
 
     async def _main(self):
-        decky.logger.info("Remote Stream Button loaded")
+        decky.logger.info("StreamKoda loaded")
 
     async def _unload(self):
-        decky.logger.info("Remote Stream Button unloaded")
+        decky.logger.info("StreamKoda loaded")
 
     async def _uninstall(self):
         pass

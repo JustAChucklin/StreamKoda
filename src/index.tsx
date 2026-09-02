@@ -84,8 +84,8 @@ export default definePlugin(() => {
   // can't self-loop the same way.
 
   return {
-    name: "Remote Stream Button",
-    titleView: <div className={staticClasses.Title}>Remote Stream Button</div>,
+    name: "StreamKoda",
+    titleView: <div className={staticClasses.Title}>StreamKoda</div>,
     content: <Content />,
     icon: <FaSatelliteDish />,
     onDismount() {
