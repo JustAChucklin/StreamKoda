@@ -32,6 +32,12 @@ him.
 
 > May he forever be our rock, a distinguished gentleman.
 
+<p align="center">
+  <img src="assets/koda.png" alt="Koda" width="260">
+  <img src="assets/koda1.jpeg" alt="Koda" width="260">
+  <img src="assets/koda3.jpg" alt="Koda" width="260">
+</p>
+
 ## License
 
 [BSD 3-Clause](LICENSE)
