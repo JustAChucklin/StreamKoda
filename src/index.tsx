@@ -28,7 +28,7 @@ function Content() {
   const [lastApplied, setLastApplied] = useState<number | null>(null);
 
   return (
-    <PanelSection title="Remote Stream Button">
+    <PanelSection title="StreamKoda">
       <PanelSectionRow>
         <div style={{ fontSize: "0.8em", opacity: 0.8 }}>
           Games not installed locally but installed on another of these devices
@@ -50,12 +50,12 @@ function Content() {
             const count = applyDefaultStreamSelections({ force: true });
             setLastApplied(count);
             toaster.toast({
-              title: "Remote Stream Button",
+              title: "StreamKoda",
               body: `Set stream as default for ${count} game(s).`,
             });
           }}
         >
-          {lastApplied === null ? "Apply now" : `Applied to ${lastApplied} game(s) - reapply`}
+          {lastApplied === null ? "Boop" : `Applied to ${lastApplied} game(s) - Re-Boop`}
         </ButtonItem>
       </PanelSectionRow>
     </PanelSection>
@@ -69,18 +69,23 @@ export default definePlugin(() => {
     applyDefaultStreamSelections();
   });
 
-  // Fires on library data changes (a friend/other device finishing an
-  // install, etc.) - the payload is a protobuf ArrayBuffer we don't need to
-  // parse, it's just our cue to rescan for newly-eligible apps. Unlike the
-  // other Register* calls here, this one's typed to return void, not an
-  // Unregisterable - nothing to clean up on dismount.
-  SteamClient.Apps.RegisterForAppOverviewChanges(() => {
-    applyDefaultStreamSelections();
-  });
+  // Deliberately NOT using SteamClient.Apps.RegisterForAppOverviewChanges
+  // here: it's typed to return void, not an Unregisterable, so there is no
+  // way to ever tear it down - every plugin reload (Decky hot-reloads on
+  // every file write during dev) leaves another one permanently stacked.
+  // Worse, SetStreamingClientForApp itself triggers that same event (each
+  // one is a library-data change), so N stacked listeners each reacting by
+  // calling SetStreamingClientForApp again is a real feedback loop - this
+  // caused a genuine OOM crash (58GB+) during development. Confirmed via
+  // live CDP test that a single call only fires the event once on its
+  // own; the danger was purely the leaked/stacked listeners compounding
+  // it. RegisterForDevicesChanges below is a real Unregisterable and is
+  // only triggered by external device state, not by our own writes, so it
+  // can't self-loop the same way.
 
   return {
-    name: "Remote Stream Button",
-    titleView: <div className={staticClasses.Title}>Remote Stream Button</div>,
+    name: "StreamKoda",
+    titleView: <div className={staticClasses.Title}>StreamKoda</div>,
     content: <Content />,
     icon: <FaSatelliteDish />,
     onDismount() {
